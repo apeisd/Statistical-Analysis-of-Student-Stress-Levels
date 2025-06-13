@@ -1,0 +1,85 @@
+---
+gltitle: "Stat130 Analysis Code Project 3"
+author: "Thien Pham"
+date: "2024-12-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+# Create the data frame
+df <- data.frame(
+  Stress_Level = c(3, 5, 5, 2, 5, 5, 3, 3, 3, 4, 4, 4, 4, 3, 5, 3, 3, 4, 4, 4, 5, 3, 5, 4, 3),
+  College = c("CNAS", "BCOE", "CNAS", "CNAS", "CHASS", "CNAS", "CHASS", "BCOE", "CNAS", "BCOE",
+              "BCOE", "CNAS", "CHASS", "CHASS", "CNAS", "CNAS", "CHASS", "Other", "CNAS", "CHASS",
+              "CHASS", "CNAS", "CHASS", "CNAS", "CNAS"),
+  Academic_Year = c("Freshman", "Junior", "Freshman", "Junior", "Sophomore", "Junior", "Junior",
+                    "Junior", "Sophomore", "Senior", "Junior", "Junior", "Senior", "Junior", "Senior",
+                    "Freshman", "Senior", "Junior", "Senior", "Senior", "Sophomore", "Junior", "Junior",
+                    "Freshman", "Junior"),
+  Courses_Enrolled = c(4, 3, 4, 3, 4, 3, 3, 4, 3, 4, 4, 3, 3, "Other", 4, 5, 5, 4, 4, 5, 3, 3, 4, 4, 4)
+)
+
+df_filtered <- df[df$Courses_Enrolled != "Other", ]
+df_filtered <- df_filtered[df_filtered$College != "Other", ]
+```
+
+
+```{r}
+# Setup
+mean_y <- mean(df_filtered$Stress_Level)
+s2_y <- var(df_filtered$Stress_Level)
+n <- nrow(df_filtered)  
+N <- 26384 # total students at ucr
+
+# ************************SRS***************************
+MEAN_stress_SRS <- mean_y 
+SE_mean_stress_SRS <- sqrt((s2_y/n) * (1 - (n/N)))
+CI95_SRS <- MEAN_stress_SRS + c(-1,1) * qt(.975,n-1) * SE_mean_stress_SRS
+
+
+# ************************Stratified********************
+
+df_courseload <- df_filtered %>% 
+  group_by(Courses_Enrolled) %>%
+  summarize(
+    mean_stress_level = mean(Stress_Level),
+    s2_stress_level = var(Stress_Level),
+    n_h = n()
+  )
+df_affiliation<- df_filtered %>% 
+  group_by(College) %>%
+  summarize(
+    mean_stress_level = mean(Stress_Level),
+    s2_stress_level = var(Stress_Level),
+    n_h = n()
+  )
+# Setup n and h for calculations
+h <- nrow(df_courseload)
+n <- sum(df_courseload$n_h)
+
+# Calculate between strata variance
+SSB_c <- sum((df_courseload$n_h)*(df_courseload$mean_stress_level - mean_y)^2)
+var_between_strata_c <- SSB_c/n
+SSB_a <- sum((df_affiliation$n_h)*(df_affiliation$mean_stress_level - mean_y)^2)
+var_between_strata_a <- SSB_a/n
+
+mean_stress_c_post <- sum((df_courseload$n_h/n) * df_courseload$mean_stress_level)
+SE_stress_c_post <- sqrt((1-(n/N)) * sum((df_courseload$n_h/N) * df_courseload$s2_stress_level/n))
+CI95_c <- mean_stress_c_post + c(-1,1) * qt(.975,n-h) * SE_stress_c_post
+
+
+# ***********************Print values*********************
+MEAN_stress_SRS
+SE_mean_stress_SRS
+CI95_SRS
+var_between_strata_c
+var_between_strata_a
+CI95_c
+CI95_SRS
+```
+
